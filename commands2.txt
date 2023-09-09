@@ -1,0 +1,19 @@
+# Example Commands File
+
+# Define a command named "command1"
+command1
+    10usecs     write   terminal 10B
+    20usecs     read    terminal 4B
+    30usecs     sleep   500000usecs
+    40usecs     spawn   command2
+    50usecs     wait
+    60usecs     exit
+
+# Define another command named "command2"
+command2
+    10usecs     write   terminal 5B
+    20usecs     read    terminal 5B
+    30usecs     sleep   1000000usecs
+    40usecs     exit
+
+# Define additional commands if needed

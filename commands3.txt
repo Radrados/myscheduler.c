@@ -1,0 +1,20 @@
+# Example command file
+#
+# Command 1: Print "Hello, World!"
+#
+command1:
+    0 usleep 500000
+    500000 write "Hello, World!"  # Write "Hello, World!" to the console
+    600000 exit            # Exit the process
+
+# Command 2: Calculate and print the sum of two numbers
+command2:
+    0 usleep 200000       # Sleep for 200 milliseconds
+    200000 write "Enter two numbers: "  # Prompt the user for input
+    201000 read num1      # Read the first number from the user
+    400000 usleep 300000  # Sleep for 300 milliseconds
+    700000 read num2      # Read the second number from the user
+    1000000 add num1 num2 sum  # Calculate the sum
+    1100000 write "The sum is: "  # Print the result
+    1200000 write sum
+    1300000 exit            # Exit the process
