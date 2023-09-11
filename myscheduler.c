@@ -43,9 +43,12 @@ struct Device {
     unsigned long int readspeed;
     unsigned long int writespeed;
 }devices [MAX_DEVICES];
-#yodumb
+
+
+
 void read_sysconfig(char argv0[], char filename[])
 {
+//change this entire file
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         fprintf(stderr, "%s: unable to open %s for reading \n", argv0, filename);
@@ -53,10 +56,23 @@ void read_sysconfig(char argv0[], char filename[])
     }
 
     char line[256];
+    int device_count = 0;
     while (fgets(line, sizeof(line), file) != NULL) {
-        printf("%s", line);
+        if (line[0] != CHAR_COMMENT && strstr(line, "device") != NULL) {
+            sscanf(line, "device %s %luBps %luBps",
+                   devices[device_count].name,
+                   &devices[device_count].readspeed,
+                   &devices[device_count].writespeed);
+            device_count++;
+        }
     }
-
+    printf("here are the number of devices: %i \n", device_count);
+    //for (int i = 0; i < device_count; i++) {
+        //printf("Device Name: %s \n", devices[i].name);
+        //printf("Device Name: %lu \n", devices[i].readspeed);
+        //printf("Device Name: %lu \n", devices[i].writespeed);
+        //printf("---------------------------------- \n");
+    //}
     fclose(file);
 }
 
