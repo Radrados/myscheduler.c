@@ -38,6 +38,11 @@
 //  ----------------------------------------------------------------------
 
 #define CHAR_COMMENT                    '#'
+struct Device {
+    char name[MAX_DEVICE_NAME];
+    unsigned long int readspeed;
+    unsigned long int writespeed;
+}devices [MAX_DEVICES];
 
 void read_sysconfig(char argv0[], char filename[])
 {
