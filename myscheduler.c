@@ -48,7 +48,7 @@ struct Device {
 
 void read_sysconfig(char argv0[], char filename[])
 {
-//change this entire file
+//change this entire file lol
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         fprintf(stderr, "%s: unable to open %s for reading \n", argv0, filename);
