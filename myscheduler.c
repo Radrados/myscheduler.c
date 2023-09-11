@@ -2,9 +2,10 @@
 #include <stdlib.h>
 //  you may need other standard header files
 
-//  add your name whrn you open the file
+//  add your name when you open the file
 //  CITS2002 Project 1 2023
-//  Student1:   RADOS MARKOVIC  23423175
+//  Student1:   23423175        RADOS MARKOVIC
+
 //  Student2:   23367345        ADITYA PATIL
 
 
@@ -33,6 +34,7 @@
 #define TIME_CONTEXT_SWITCH             5
 #define TIME_CORE_STATE_TRANSITIONS     10
 #define TIME_ACQUIRE_BUS                20
+#define MAX_SYSCALLS_NAME               10 /// assuming max name for a syscall is 10
 
 
 //  ----------------------------------------------------------------------
@@ -44,11 +46,24 @@ struct Device {
     unsigned long int writespeed;
 }devices [MAX_DEVICES];
 
+typedef struct command command;
+typedef struct syscalls syscalls;
 
+struct command {
+    char name[MAX_COMMAND_NAME];
+    syscalls *syscalls_array[MAX_SYSCALLS_PER_PROCESS]; // Array of pointers to syscalls rand uring the process
+};
+//teteeteter
+struct syscalls {
+    int when;
+    char name[MAX_SYSCALLS_NAME];//
+    device device;  // nested struct
+    command *command; // Pointer to command as it's not yet fully defined
+};
 
 void read_sysconfig(char argv0[], char filename[])
 {
-//change this entire file lol
+//change this entire file
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         fprintf(stderr, "%s: unable to open %s for reading \n", argv0, filename);
