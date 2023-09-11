@@ -4,8 +4,8 @@
 
 //  add your name whrn you open the file
 //  CITS2002 Project 1 2023
-//  Student1:   RADOS MARKOVIC 23423175
-//  Student2:   STUDENT-NUMBER2   NAME-2
+//  Student1:   RADOS MARKOVIC  23423175
+//  Student2:   23367345        ADITYA PATIL
 
 
 //  myscheduler (v1.0)
@@ -46,6 +46,18 @@ struct Device {
 
 void read_sysconfig(char argv0[], char filename[])
 {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        fprintf(stderr, "%s: unable to open %s for reading \n", argv0, filename);
+        exit(EXIT_FAILURE);
+    }
+
+    char line[256];
+    while (fgets(line, sizeof(line), file) != NULL) {
+        printf("%s", line);
+    }
+
+    fclose(file);
 }
 
 void read_commands(char argv0[], char filename[])

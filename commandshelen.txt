@@ -1,7 +1,7 @@
 #
 #
 shortsleep
-    10usecs    sleep    1000000usecsgithu
+    10usecs    sleep    1000000usecs
     50usecs    exit
 #
 longsleep
