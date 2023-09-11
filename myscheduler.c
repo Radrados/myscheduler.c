@@ -34,6 +34,7 @@
 #define TIME_CONTEXT_SWITCH             5
 #define TIME_CORE_STATE_TRANSITIONS     10
 #define TIME_ACQUIRE_BUS                20
+#define MAX_SYSCALLS_NAME               10 /// assuming max name for a syscall is 10
 
 
 //  ----------------------------------------------------------------------
@@ -45,7 +46,20 @@ struct Device {
     unsigned long int writespeed;
 }devices [MAX_DEVICES];
 
+typedef struct command command;
+typedef struct syscalls syscalls;
 
+struct command {
+    char name[MAX_COMMAND_NAME];
+    syscalls *syscalls_array[MAX_SYSCALLS_PER_PROCESS]; // Array of pointers to syscalls rand uring the process
+};
+
+struct syscalls {
+    int when;
+    char name[MAX_SYSCALLS_NAME];//
+    device device;  // nested struct
+    command *command; // Pointer to command as it's not yet fully defined
+};
 
 void read_sysconfig(char argv0[], char filename[])
 {
