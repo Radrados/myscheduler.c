@@ -43,7 +43,7 @@ struct Device {
     unsigned long int readspeed;
     unsigned long int writespeed;
 }devices [MAX_DEVICES];
-
+#yo
 void read_sysconfig(char argv0[], char filename[])
 {
     FILE *file = fopen(filename, "r");
