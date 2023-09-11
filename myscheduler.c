@@ -53,7 +53,7 @@ struct command {
     char name[MAX_COMMAND_NAME];
     syscalls *syscalls_array[MAX_SYSCALLS_PER_PROCESS]; // Array of pointers to syscalls rand uring the process
 };
-//teteetete
+//teteeteter
 struct syscalls {
     int when;
     char name[MAX_SYSCALLS_NAME];//
