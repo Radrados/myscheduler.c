@@ -2,9 +2,10 @@
 #include <stdlib.h>
 //  you may need other standard header files
 
-//  add your name whrn you open the file
+//  add your name when you open the file
 //  CITS2002 Project 1 2023
-//  Student1:   RADOS MARKOVIC  23423175
+//  Student1:   23423175        RADOS MARKOVIC
+
 //  Student2:   23367345        ADITYA PATIL
 
 
@@ -48,7 +49,7 @@ struct Device {
 
 void read_sysconfig(char argv0[], char filename[])
 {
-//change this entire file lol
+//change this entire file
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         fprintf(stderr, "%s: unable to open %s for reading \n", argv0, filename);
