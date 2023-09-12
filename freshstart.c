@@ -68,8 +68,9 @@ struct syscalls {
     int when;
     char name[MAX_SYSCALLS_NAME];//
     char device[MAX_DEVICE_NAME];  // nested struct
-    command *command; // Pointer to command as it's not yet fully defined
+    char command[MAX_COMMAND_NAME]; // Pointer to command as it's not yet fully defined
     unsigned long int bytes;
+    int sleeptime;
 };
 struct command {
     char name[MAX_COMMAND_NAME];
@@ -120,7 +121,10 @@ int read_commands(char argv0[], char filename[]) {
     int temptime;
     char syscallname[MAX_SYSCALLS_NAME];
     int syscallsindex = 0;
+    char device[MAX_DEVICE_NAME];
+    char childcommandname[MAX_COMMAND_NAME];
     unsigned long int bytes;
+    int sleeptime;
     while (fgets(line, sizeof(line), file)) {
         // If the first char isn't a comment
         debugprint("line: %s\n", line);
@@ -149,14 +153,33 @@ int read_commands(char argv0[], char filename[]) {
                                commands[commandindex].syscallcount);
 
 
-                } else if (strcmp(syscallname, "wait")){
-                    sscanf(line, "\t%iusecs %s %luB",&temptime, syscallname, bytes);
+                } else if (strcmp(syscallname, "sleep")==0){
+                    sscanf(line, "\t%iusecs %s %i",&temptime, syscallname, &sleeptime);
                     commands[commandindex].syscallsarray[syscallsindex].when = temptime;
                     strcpy(commands[commandindex].syscallsarray[syscallsindex].name, syscallname);
-                    commands[commandindex].syscallsarray[syscallsindex].bytes = bytes;
+                    commands[commandindex].syscallsarray[syscallsindex].sleeptime = sleeptime;
                     commands[commandindex].syscallcount++;
                     syscallsindex++;
 
+                }else if((strcmp(syscallname, "write")==0) || (strcmp(syscallname, "read")==0)){
+                    debugprint("syscall is write or read\n");
+                    sscanf(line,"\t%iusecs %s %s %liB", &temptime, syscallname, device, &bytes);
+                    debugprint("\t%s %liB to/from %s at time: %i\n", syscallname,  bytes, device, temptime);
+                    commands[commandindex].syscallsarray[syscallsindex].when = temptime;
+                    strcpy(commands[commandindex].syscallsarray[syscallsindex].name, syscallname);
+                    strcpy(commands[commandindex].syscallsarray[syscallsindex].device, device);
+                    commands[commandindex].syscallsarray[syscallsindex].bytes = bytes;
+                    commands[commandindex].syscallcount++;
+                    syscallsindex++;
+                }else if(strcmp(syscallname, "spawn")==0){
+                    debugprint("syscall is spawn\n");
+                    sscanf(line,"\t%iusecs %s %s", &temptime, syscallname, childcommandname);
+
+                    commands[commandindex].syscallsarray[syscallsindex].when = temptime;
+                    strcpy(commands[commandindex].syscallsarray[syscallsindex].name, syscallname);
+                    strcpy(commands[commandindex].syscallsarray[syscallsindex].command, childcommandname);
+                    commands[commandindex].syscallcount++;
+                    syscallsindex++;
                 }
 
                 }
@@ -182,16 +205,33 @@ void print_commands() {
     printf("Commands:\n");
     printf("-------------------------------------------------\n");
 
-    for(int i = 0; i < MAX_COMMANDS && commands[i].syscallcount > 0; i++) {
+    for (int i = 0; i < MAX_COMMANDS && commands[i].syscallcount > 0; i++) {
         // Checking syscallcount > 0 is a way to ensure that the command is valid
         // (assuming a command with 0 syscalls doesn't exist).
 
         printf("Command Name: %s\n", commands[i].name);
         printf("Number of Syscalls: %d\n", commands[i].syscallcount);
 
-        for(int j = 0; j < commands[i].syscallcount; j++) {
+        for (int j = 0; j < commands[i].syscallcount; j++) {
             printf("\tSyscall at %iusecs: %s\n", commands[i].syscallsarray[j].when, commands[i].syscallsarray[j].name);
+
+            if (strcmp(commands[i].syscallsarray[j].name, "read") == 0) {
+                printf("\t\tRead %luB from %s\n", commands[i].syscallsarray[j].bytes,
+                       commands[i].syscallsarray[j].device);
+            } else if (strcmp(commands[i].syscallsarray[j].name, "write") == 0) {
+                printf("\t\tWrote %luB to %s\n", commands[i].syscallsarray[j].bytes,
+                       commands[i].syscallsarray[j].device);
+            } else if (strcmp(commands[i].syscallsarray[j].name, "spawn") == 0) {
+                printf("\t\tSpawned %s\n", commands[i].syscallsarray[j].command);
+            } else if (strcmp(commands[i].syscallsarray[j].name, "sleep") == 0) {
+                printf("\t\tSlept for %iusecs\n", commands[i].syscallsarray[j].sleeptime);
+            } else if (strcmp(commands[i].syscallsarray[j].name, "exit") == 0) {
+                printf("\t\tExited\n");
+            }
         }
+
+
+
 
         printf("-------------------------------------------------\n");
     }
