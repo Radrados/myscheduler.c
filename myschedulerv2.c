@@ -121,59 +121,74 @@ int readcommands(char argv0[], char filename[], command commands[]) {
     }
     char line[LINESIZE];
     int commandindex=-1;
+    int currentsyscallcount = 0;
 
     while (fgets(line, sizeof(line), file) != NULL) {//read each line untill end of file and store i tin line string
-        int currentsyscallcount = 0;
-
+        debugprint("line: %s\n", line);
         if (line[0] == CHAR_COMMENT) {// if line starts with commentchar skip it
             continue;
         }
+
         if (line[0] != '\t') {// if line doesnt start with tab then it is a new command
             commandindex++;
-            currentsyscallcount=0;
+            debugprint("command index %i\n", commandindex);
+            debugprint("CURRENT SYSCALL COUNT: %i\n", commands[commandindex].syscallcount);
             sscanf(line, "%s", commands[commandindex - 1].name); // save command name into command struct
+            debugprint("\tcommand name: %s\n", commands[commandindex ].name);
             commands[commandindex - 1].syscallcount = 0; // set syscall count to 0 as it is a new command
-        } else {
+            debugprint("CURRENT SYSCALL COUNT: %i\n", commands[commandindex].syscallcount);
+        }
+
+        else {//if line starts with tab then it is a syscall
+            debugprint("\tline starts with tab\n");
+            debugprint("\t\t\tcurrent syscall count: %i\n", commands[commandindex ].syscallcount);
+
             struct syscalls *newSyscall;//pointer to struct syscall
             struct command *currentcommand = &commands[commandindex - 1];//pointer to current command
             struct syscalls *syscallarray = currentcommand->syscalls_array;//pointer to syscall array within current command
+
             //int currentsyscallcount = currentcommand->syscallcount;//current syscall count for current array
             newSyscall = &syscallarray[currentsyscallcount];            //set new syscall to the current syscall count// MAGIC, IDK WHAT THIS IS DOING
-            debugprint("current syscall count: %i\n", currentsyscallcount);
+            debugprint("\tcurrent syscall count: %i\n", currentsyscallcount);
             currentsyscallcount++;
+            debugprint("\tupdated syscall count %i\n", currentsyscallcount);
             sscanf(line, "\t%dusecs %s",
                    &newSyscall->when,
                    newSyscall->name);//split the line and save the when and name into new syscall
-            debugprint("syscall name: %s\n", newSyscall->name);
+            debugprint("\tsyscall name: %s\n", newSyscall->name);
             if(strcmp(newSyscall->name, "exit") == 0){
-                debugprint("exit syscall found\n");
+                debugprint("\t\texit syscall found\n");
                 commands[commandindex].syscalls_array[currentsyscallcount]= *newSyscall;
                 commands[commandindex].syscallcount = currentsyscallcount;
-                debugprint("current suscallcount: %i\n", commands[commandindex].syscallcount);
+                debugprint("\t\tcurrent suscallcount: %i\n", commands[commandindex].syscallcount);
 
             }
 
             else if(strcmp(newSyscall->name, "sleep") == 0) {//if syscall is sleep
-                debugprint("sleep syscall found\n");
+                debugprint("\t\tsleep syscall found\n");
                 sscanf(line, "\t%dusecs %s %luB",
                        &newSyscall->when,
                        newSyscall->name,
                        &newSyscall->bytes);//split the line and save the when and name into new syscall
-                debugprint("sscanf complete for sleep syscall\n");
+                debugprint("\t\tsscanf complete for sleep syscall\n");
                 commands[commandindex].syscalls_array[currentsyscallcount]= *newSyscall;
                 commands[commandindex].syscallcount = currentsyscallcount;
-                debugprint("current syscall ", commands[commandindex].syscalls_array[currentsyscallcount].name);
+                debugprint("\t\tcurrent syscall %s\n", commands[commandindex].syscalls_array[currentsyscallcount].name);
 
             }
 
 
+            debugprint("\tpre updated syscall count %i\n", commands[commandindex - 1].syscallcount);
+
+            commands[commandindex - 1].syscallcount++;
+            debugprint("\tupdated syscall count %i\n", commands[commandindex - 1].syscallcount);
+            debugprint("command index %i\n--------------------------\n", commandindex);
 
         }
-        commands[commandindex - 1].syscallcount++;
 
     }
     fclose(file);
-    return commandindex;
+    return commandindex+1;
 
 }
 
@@ -184,7 +199,7 @@ void printcommands(struct command commands[], int totalcommands){
     for(int i = 0; i < totalcommands; i++){
         printf("Command Name: %s    Number of Syscalls: %d\n\n", commands[i].name, commands[i].syscallcount);
         for(int j =0 ; j< commands[i].syscallcount; j++){
-            printf("\t %i\t%s\t%s\t%ul\t%s\n",
+            printf("\t %i\t%s\t%s\t%lu\t%s\n",
                    commands->syscalls_array[j].when,
                    commands->syscalls_array[j].name,
                    commands->syscalls_array[j].device.name,
@@ -215,7 +230,11 @@ int main(int argc, char *argv[])
     struct command commands[MAX_COMMANDS] = {0};
     int numofcommands;
     numofcommands = readcommands(argv[0], argv[2], commands);
+    debugprint("====================================\n");
+    debugprint("printing commands:\n"
+            );
     printcommands(commands, numofcommands);
+    debugprint("num of commands is %i\n", numofcommands);
 //  EXECUTE COMMANDS, STARTING AT FIRST IN command-file, UNTIL NONE REMAIN
     execute_commands();
 
