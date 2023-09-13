@@ -48,6 +48,7 @@
 
 #define CHAR_COMMENT                    '#'
 #define DEBUG                           true
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 //STRUCTURES
 
@@ -340,7 +341,8 @@ void execute_commands(void){
     command currentcommand;
     command completedcommands[MAX_COMMANDS];
     int timeleft;//how long a command has till its end
-
+    int readytorunningwaittime = 0;// how long waiting to go from ready to running
+    int runningtoreadywaittime = 0;//how long waiting ot ogo from running to ready
     //add first command to ready queue
     enqueue(readyq, commands[0]);
 
@@ -349,13 +351,15 @@ void execute_commands(void){
         //get the first command in the ready queue
         currentcommand = dequeue(readyq);
         //incremetn the clock by the ready -> running time (context switch)
-        globalclock+=5;
+        globalclock+= TIME_CONTEXT_SWITCH;
+        readytorunningwaittime+= TIME_CONTEXT_SWITCH;
 
         printf("\ncurrent command is \n");
         print_command(&currentcommand);
 
         // check if command will finish before time quantum kills it
-        if(currentcommand.syscallsarray[0].when < timequantum){
+        timeleft= MIN(currentcommand.syscallsarray[0].when, timequantum);
+        if(((currentcommand.syscallsarray[0].when)- currentcommand.runtime) < timequantum){
             //find the time till the finish of the current syscall in the command
             printf("current commands will finish before the time quantum\n");
             timeleft = (currentcommand.syscallsarray[0].when) - (currentcommand.runtime);
@@ -366,21 +370,31 @@ void execute_commands(void){
             printf("global clock is %li\n", globalclock);
 
 
-        }else{
+        }else{//if command will not finish before time quantum kills it
             printf("current command will not finish before the time quantum\n");
+            timeleft = timequantum;
+            currentcommand.runtime = currentcommand.runtime + timequantum;
+            printf("current command runtime is %i\n", currentcommand.runtime);
+            printf("current command timeleft is %i\n", timeleft);
+            globalclock+= timequantum;
+            printf("global clock is %li\n", globalclock);
+            enqueue(readyq, currentcommand);
+            globalclock+= TIME_CORE_STATE_TRANSITIONS;//10
+            runningtoreadywaittime+= TIME_CORE_STATE_TRANSITIONS;
+
         }
-        printf("\n the current command 0 is:\n");
-        print_command(&commands[0]);
+//        printf("\n the current command 0 is:\n");
+//        print_command(&commands[0]);
 
         //update command
         commands[0] = currentcommand;
-        printf("after simulation command 0 is:\n");
-        print_command(&commands[0]);
+//        printf("after simulation command 0 is:\n");
+//        print_command(&commands[0]);
 
 
         printf("calculating runtime\n");
         //calculate TOTAL runtime
-        int totalruntime;
+        int totalruntime=0;
         for(int i = 0; i < MAX_COMMANDS; i++){
             totalruntime+= commands[i].runtime;
         }
@@ -388,10 +402,16 @@ void execute_commands(void){
         printf("global clock is %li\n", globalclock);
         long double doubletotalruntime = (long double) totalruntime;
         long double doubleglobalclock = (long double) globalclock;
-
+        long double doublerunningtoreadywaittime = (long double) runningtoreadywaittime;
+        long double doublereadytorunningwaittime = (long double) readytorunningwaittime;
+//        doubleglobalclock+= doublerunningtoreadywaittime;
+//        doubleglobalclock+= doublereadytorunningwaittime;
+        printf("double total runtime is %Lf\n", doubletotalruntime);
+        printf("time spent waiting from ready to running is %i\n", readytorunningwaittime);
+        printf("time spent waiting from running to ready is %i\n", runningtoreadywaittime);
         //calculate percentage
         long int percentage =  (doubletotalruntime/doubleglobalclock)*100;
-        printf("measurements  %i  %li\n", totalruntime, percentage);
+        printf("measurements  %Lf  %li\n", doubleglobalclock, percentage);
 
     }
 
