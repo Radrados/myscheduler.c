@@ -1,4 +1,7 @@
 //
+// Created by RadRados on 13/9/2023.
+//
+//
 // Created by RadRados on 12/9/2023.
 //
 #include <stdio.h>
@@ -179,162 +182,6 @@ command dequeue(Queue* q) {
     free(temp);
     return command1;
 }
-
-void read_sysconfig(char argv0[], char filename[])
-{
-    FILE *file = fopen(filename, "r");
-    if (file == NULL) {
-        fprintf(stderr, "%s: unable to open %s for reading \n", argv0, filename);
-        exit(EXIT_FAILURE);
-    }
-
-    char line[256];
-    int device_count = 0;
-    while (fgets(line, sizeof(line), file) != NULL) {
-        if (line[0] != CHAR_COMMENT) {
-            if (strstr(line, "device") != NULL) {
-                sscanf(line, "device %s %luBps %luBps",
-                       devices[device_count].name,
-                       &devices[device_count].readspeed,
-                       &devices[device_count].writespeed);
-                device_count++;
-            }
-            else if (strstr(line, "timequantum") != NULL) {
-                sscanf(line, "timequantum %d", &timequantum);
-            }
-        }
-    }
-    fclose(file);
-}
-
-void printSysConfig() {
-    printf("System Configuration:\n");
-    printf("-------------------------------------------------\n");
-
-    for (int i = 0; i < MAX_DEVICES && devices[i].readspeed != 0; i++) {
-        // Checking readspeed != 0 as an indication that the device entry is populated.
-        printf("Device Name: %s\n", devices[i].name);
-        printf("Read Speed: %luBps\n", devices[i].readspeed);
-        printf("Write Speed: %luBps\n", devices[i].writespeed);
-        printf("-------------------------------------------------\n");
-    }
-    printf("Time Quantum: %i\n", timequantum);
-    printf("-------------------------------------------------\n");
-
-}
-
-
-int read_commands(char argv0[], char filename[]) {
-    FILE *file = fopen(filename, "r"); // Replace 'filename.txt' with your file's name
-    debugprint("Reading file %s\n", filename);
-    char line[MAX_LINE_LENGTH]; // Assuming max line length is 255 chars plus a null terminator
-    int commandindex = -1;
-    int temptime;
-    char syscallname[MAX_SYSCALLS_NAME];
-    int syscallsindex = 0;
-    char device[MAX_DEVICE_NAME];
-    char childcommandname[MAX_COMMAND_NAME];
-    unsigned long int bytes;
-    int sleeptime;
-    while (fgets(line, sizeof(line), file)) {
-        // If the first char isn't a comment
-        debugprint("line: %s\n", line);
-        if (line[0] != CHAR_COMMENT) {
-            debugprint("line isnt a commebt\n");
-            //if line doesnt start with tan  NEW COMMAND
-            if (line[0] != '\t') {
-
-                commandindex++;
-                sscanf(line, "%s", commands[commandindex].name);
-                commands[commandindex].syscallcount = 0;
-                commands[commandindex].runtime = 0;
-                syscallsindex = 0;
-                debugprint("New command: %s syscall count:%i\n", commands[commandindex].name,
-                           commands[commandindex].syscallcount);
-            } else {
-                //if line starts with a tab
-                sscanf(line, "\t%iusecs %s", &temptime, syscallname);
-                //if line is an exit syscall
-                if (strcmp(syscallname, "exit") == 0) {
-                    commands[commandindex].syscallsarray[syscallsindex].when = temptime;
-                    strcpy(commands[commandindex].syscallsarray[syscallsindex].name, syscallname);
-
-                    debugprint("syscall: %s syscall count:%i\n",
-                               commands[commandindex].syscallsarray[syscallsindex].name,
-                               commands[commandindex].syscallcount);
-
-
-                } else if (strcmp(syscallname, "sleep")==0){//sleep syscall
-                    sscanf(line, "\t%iusecs %s %i",&temptime, syscallname, &sleeptime);
-                    commands[commandindex].syscallsarray[syscallsindex].when = temptime;
-                    strcpy(commands[commandindex].syscallsarray[syscallsindex].name, syscallname);
-                    commands[commandindex].syscallsarray[syscallsindex].sleeptime = sleeptime;
-
-
-                }else if((strcmp(syscallname, "write")==0) || (strcmp(syscallname, "read")==0)){
-                    debugprint("syscall is write or read\n");
-                    sscanf(line,"\t%iusecs %s %s %liB", &temptime, syscallname, device, &bytes);
-                    debugprint("\t%s %liB to/from %s at time: %i\n", syscallname,  bytes, device, temptime);
-                    commands[commandindex].syscallsarray[syscallsindex].when = temptime;
-                    strcpy(commands[commandindex].syscallsarray[syscallsindex].name, syscallname);
-                    strcpy(commands[commandindex].syscallsarray[syscallsindex].device, device);
-                    commands[commandindex].syscallsarray[syscallsindex].bytes = bytes;
-
-                }else if(strcmp(syscallname, "spawn")==0){
-                    debugprint("syscall is spawn\n");
-                    sscanf(line,"\t%iusecs %s %s", &temptime, syscallname, childcommandname);
-
-                    commands[commandindex].syscallsarray[syscallsindex].when = temptime;
-                    strcpy(commands[commandindex].syscallsarray[syscallsindex].name, syscallname);
-                    strcpy(commands[commandindex].syscallsarray[syscallsindex].command, childcommandname);
-
-                   }
-                    commands[commandindex].syscallcount++;
-                    syscallsindex++;
-
-                }
-
-
-
-
-        }
-
-
-    }
-    fclose(file);
-    return 0;
-
-//  ----------------------------------------------------------------------
-}
-
-void print_command(const command *cmd) {
-    if(cmd == NULL) {
-        printf("Command is NULL.\n");
-        return;
-    }
-    printf("..................................................................\n");
-    printf("\tCommand Name: %s\n", cmd->name);
-    printf("\tRuntime: %d\n", cmd->runtime);
-    printf("\tNumber of Syscalls: %d\n", cmd->syscallcount);
-
-    for (int j = 0; j < cmd->syscallcount; j++) {
-        printf("\t\tSyscall at %iusecs: %s\n", cmd->syscallsarray[j].when, cmd->syscallsarray[j].name);
-
-        if (strcmp(cmd->syscallsarray[j].name, "read") == 0) {
-            printf("\t\t\tRead %luB from %s\n", cmd->syscallsarray[j].bytes, cmd->syscallsarray[j].device);
-        } else if (strcmp(cmd->syscallsarray[j].name, "write") == 0) {
-            printf("\t\t\tWrote %luB to %s\n", cmd->syscallsarray[j].bytes, cmd->syscallsarray[j].device);
-        } else if (strcmp(cmd->syscallsarray[j].name, "spawn") == 0) {
-            printf("\t\t\tSpawned %s\n", cmd->syscallsarray[j].command);
-        } else if (strcmp(cmd->syscallsarray[j].name, "sleep") == 0) {
-            printf("\t\t\tSlept for %iusecs\n", cmd->syscallsarray[j].sleeptime);
-        } else if (strcmp(cmd->syscallsarray[j].name, "exit") == 0) {
-            printf("\t\t\tExited\n");
-        }
-    }
-    printf("..................................................................\n");
-}
-
 void execute_commands(void)
 {
     readyq= createQueue();
@@ -348,22 +195,15 @@ void execute_commands(void)
     while(!isEmpty(readyq)){
 
         command currentcommand = dequeue(readyq);
-        if (isEmpty(readyq)){
-            debugprint("<<<<<<<<<<<<<<<readyq is empty\n");
-        }
-        print_command(&currentcommand);
-        debugprint("executing command== %s\n", currentcommand.name);
+        debugprint("executing command %s\n", currentcommand.name);
         globalclock+=5;//add 5 usecs to clock as that is the ready -> running time requirement
-        debugprint("update globalclock: %i          ready -> running\n", globalclock);
 
         //run command till timeout or syscall
         int i = 0;
         timetonextsyscall= ((currentcommand.syscallsarray[0].when)-(currentcommand.runtime));
         if(timetonextsyscall<timequantum){//if command exits before next time quantum kills it
-            debugprint("command %s will complete systemcall : %s before time quantum\n", currentcommand.name, currentcommand.syscallsarray[0].name);
             globalclock+=timetonextsyscall;
             currentcommand.runtime+=timetonextsyscall;
-            debugprint("command %s has completed systemcall : %s after %i runtime\n", currentcommand.name, currentcommand.syscallsarray[0].name, currentcommand.runtime);
 
 
         } else{//if it will time out before next syscall
@@ -375,9 +215,15 @@ void execute_commands(void)
         }
     }
 
-    commands[0] = currentcommand;
-    printf("after simulation the updated command is %s:\n", currentcommand.name);
-    debugprint("commadn 0 is now %s\n", commands[0].name);
+
+    //    unblock any sleeping processes
+
+    //    unblock any processes waiting for all their spawned processes (children) to terminate
+    //    unblock any completed I/O
+    //    commence any pending I/O
+    //    commence/resume the next READY process
+    //    otherwise the CPU remains idle...
+
     //calculate cpuusage
     for(int i = 0; i< MAX_COMMANDS; i++){//loop through every command
         //following j loop completely unnecessary for now
@@ -389,14 +235,7 @@ void execute_commands(void)
     percentage = (totalruntime/globalclock)*100;
     printf("measurements  %i  %i\n", totalruntime, 0);
 
-}   //    unblock any sleeping processes
-
-//    unblock any processes waiting for all their spawned processes (children) to terminate
-//    unblock any completed I/O
-//    commence any pending I/O
-//    commence/resume the next READY process
-//    otherwise the CPU remains idle...
-
+}
 
 //  ----------------------------------------------------------------------
 void print_commands() {
