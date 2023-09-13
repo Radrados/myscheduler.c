@@ -41,6 +41,7 @@
 #define TIME_CORE_STATE_TRANSITIONS     10
 #define TIME_ACQUIRE_BUS                20
 #define MAX_SYSCALLS_NAME               10 /// assuming max name for a syscall is 10
+#define EXEC_SYSCALL_TIME               1
 
 
 
@@ -367,6 +368,7 @@ void execute_commands(void){
             printf("current command runtime is %i\n", currentcommand.runtime);
             printf("current command timeleft is %i\n", timeleft);
             globalclock+= timeleft;
+            globalclock+= EXEC_SYSCALL_TIME;// 1 time actually needed to execute a syscall
             printf("global clock is %li\n", globalclock);
 
 
@@ -411,7 +413,8 @@ void execute_commands(void){
         printf("time spent waiting from running to ready is %i\n", runningtoreadywaittime);
         //calculate percentage
         long int percentage =  (doubletotalruntime/doubleglobalclock)*100;
-        printf("measurements  %Lf  %li\n", doubleglobalclock, percentage);
+        int intglobalclock = (int) doubleglobalclock;
+        printf("measurements  %i  %li\n", intglobalclock, percentage);
 
     }
 
