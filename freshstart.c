@@ -72,6 +72,7 @@ struct syscalls {
     char command[MAX_COMMAND_NAME]; // Pointer to command as it's not yet fully defined
     unsigned long int bytes;
     int sleeptime;
+    int waketime;
 };
 
 struct command {
@@ -79,6 +80,7 @@ struct command {
     char name[MAX_COMMAND_NAME];
     int syscallcount;
     syscalls syscallsarray[MAX_SYSCALLS_PER_PROCESS]; // Array of syscalls rand uring the process
+    int currentsyscall;
 };
 typedef struct Node {
     command command;
@@ -153,6 +155,39 @@ void enqueue(Queue* q, command command1) {
     q->rear->next = temp;
     q->rear = temp;
 }
+
+// Function to add an element to the sleep queue in order of wake time
+void sleepenqueue(Queue* q, command command1) {
+    Node* temp = newNode(command1);
+    if (q->rear == NULL) {
+        q->front = q->rear = temp;
+        return;
+    }
+
+    // If the waketime of the new command is smaller than the front's waketime,
+    // then insert the new node at the beginning
+    if (command1.syscallsarray[command1.currentsyscall].waketime < q->front->command.syscallsarray[q->front->command.currentsyscall].waketime) {
+        temp->next = q->front;
+        q->front = temp;
+    } else {
+        // Find a position in the queue such that the command's waketime is in the right position
+        Node* current = q->front;
+        while (current->next != NULL && current->next->command.syscallsarray[current->next->command.currentsyscall].waketime < command1.syscallsarray[command1.currentsyscall].waketime) {
+            current = current->next;
+        }
+
+        // Insert the new node after the current node
+        temp->next = current->next;
+        current->next = temp;
+
+        if (current == q->rear) {
+            q->rear = temp;
+        }
+    }
+}
+
+// You can also add dequeue, display functions, etc., as per your requirement.
+
 
 // Function to peek at the front element without removing it
 command peek(Queue* q) {
@@ -348,7 +383,7 @@ void execute_commands(void){
     enqueue(readyq, commands[0]);
 
     //while threr is stuff in the ready queue
-    while(!isEmpty(readyq)){
+    while(!isEmpty(readyq) || !isEmpty(blockedq)){
         //get the first command in the ready queue
         currentcommand = dequeue(readyq);
         //incremetn the clock by the ready -> running time (context switch)
@@ -371,7 +406,17 @@ void execute_commands(void){
             globalclock+= EXEC_SYSCALL_TIME;// 1 time actually needed to execute a syscall
             printf("global clock is %li\n", globalclock);
 
+            // if the suscall finishes,increment the command to the next syscall
+            currentcommand.currentsyscall++;
 
+            //if the syscall is a sleep syscall
+            if(currentcommand.name=="sleep"){
+                //set waketime to global clock time it has to wake up
+                currentcommand.syscallsarray[currentcommand.currentsyscall].waketime = globalclock + currentcommand.syscallsarray[currentcommand.currentsyscall].sleeptime;
+                sleepenqueue(blockedq, currentcommand);
+            }
+
+            //if command will not finish before time quantum kills it
         }else{//if command will not finish before time quantum kills it
             printf("current command will not finish before the time quantum\n");
             timeleft = timequantum;
