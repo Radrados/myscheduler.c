@@ -197,6 +197,37 @@ int dequeue(Queue* q) {
     return commandID;
 }
 
+// Function to remove a node with a specific commandID from a queue
+bool removeNodeWithCommandID(Queue* q, int commandID) {
+    if (q->front == NULL) return false;  // if the queue is empty, return false
+
+    Node* current = q->front;
+    Node* prev = NULL;
+
+    while (current != NULL && current->commandID != commandID) {
+        prev = current;
+        current = current->next;
+    }
+
+    if (current == NULL) return false;  // commandID not found in the queue
+
+    // If the node to be removed is the first node
+    if (current == q->front) {
+        q->front = q->front->next;
+    } else {
+        prev->next = current->next;
+    }
+
+    // If the node to be removed is the last node
+    if (current == q->rear) {
+        q->rear = prev;
+    }
+
+    free(current);  // release the node
+    return true;    // return true indicating the node was removed
+}
+
+
 void read_sysconfig(char argv0[], char filename[])
 {
     FILE *file;
@@ -309,13 +340,13 @@ void executeSysCall (int commandID) {
                 continue;
             }
         }
-
+        // if it is a wait proccess
     } else if (strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "wait") == 0) {
         for(int i =0; i< commands[commandID].syscallcount-1; i ++){
             if(strcmp(commands[commandID].syscallsArray[i].name, "spawn")==0){
                 for(int j = 0; j< MAX_COMMANDS; j++){
                     if (strcmp(commands[commandID].syscallsArray[i].strValue, commands[j].name)==0){
-                        enqueue(&completed[commandID],  j);
+                        enqueue(&waitingQ[commandID],  j);
                     }
                 }
 
@@ -380,6 +411,11 @@ void execute_commands(void)
     //create current command variable
     int currentCommand = 0;
 
+    // create queue variable
+    Queue currentQueue;
+
+    Node* currentNode;
+
     //initialize clock
     int clock = 0;
 
@@ -401,8 +437,16 @@ void execute_commands(void)
         }
 
         //unblock any commands waiting for all of their spawned processes to finish
-        for(int i; i< MAX_COMMANDS; i++){
+        for(int completedCommand; completedCommand< MAX_COMMANDS; completedCommand++){
+            if(completed[completedCommand]){
+                for(int j=0; j< MAX_COMMANDS; j++){
+                    //if command j was waiting for completedCOmmand and only completedCOmmand
+                    if((removeNodeWithCommandID(&waitingQ[j], completedCommand)) &&  (isEmpty(&waitingQ[j]))){
+                        enqueue(&readyQ, j);
+                    }
 
+                }
+            }
         }
 
         //unblock any completed I/O
