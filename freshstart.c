@@ -96,6 +96,10 @@ typedef struct Queue {
 Queue *readyQ;
 //Queue of blocked commands sleeping
 Queue *sleepingQ;
+//array of ques containig the commands spawend by the command with the processID of the index of the queue
+Queue waitingQ[MAX_COMMANDS];
+//array of length MAC COMMANDS with true in the coresponding place if command is completed
+bool completed[];
 //max time a command can run on CPU before getting kicked off
 int timeQuantum;
 //array of commands from command file
@@ -137,6 +141,14 @@ Queue* createQueue() {
     }
     q->front = q->rear = NULL;
     return q;
+}
+
+//initialize array tupe queue to store kids of processes that called wait
+void createWaitQueue() {
+    for (int i = 0; i < MAX_COMMANDS; i++) {
+        waitingQ[i].front = NULL;
+        waitingQ[i].rear = NULL;
+    }
 }
 
 // Function to check if the queue is empty
@@ -266,16 +278,18 @@ int getSoonestWakingCommandIndex() {
 
 
 //function to execute a syscall
-void executeSysCall (int commandID){
+void executeSysCall (int commandID) {
 
     //EXECUTE EXIT COMMAND
-    if(strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "exit")==0){
+    if (strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "exit") == 0) {
         commands[commandID].currentsyscall++;
-        clock+= EXEC_SYSCALL_TIME;
+        completed[commandID] = true;
+        clock += EXEC_SYSCALL_TIME;
+        completed[commandID]= true;
     }
 
     //  EXECUTE SLEEP SYSCALL
-    if( strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "sleep")==0){
+    if (strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "sleep") == 0) {
         clock += EXEC_SYSCALL_TIME;
 
         //replace sleep length with wake time and place it into the sleeping queue
@@ -283,6 +297,36 @@ void executeSysCall (int commandID){
 
         //add curr command to sleeping queue
         enqueue(sleepingQ, commandID);
+    } else if (strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "spawn") == 0) {
+        clock++;
+
+        commands[commandID].syscallsArray[commands[commandID].currentsyscall].strValue;
+        for (int i = 0; i < MAX_COMMANDS; i++) {
+            //if commands[i] matches curent spawn
+            if (strcmp(commands[i].name,
+                       commands[commandID].syscallsArray[commands[commandID].currentsyscall].strValue) == 0) {
+                enqueue(readyQ, commands[i].commandID);
+                continue;
+            }
+        }
+
+    } else if (strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "wait") == 0) {
+        for(int i =0; i< commands[commandID].syscallcount-1; i ++){
+            if(strcmp(commands[commandID].syscallsArray[i].name, "spawn")==0){
+                for(int j = 0; j< MAX_COMMANDS; j++){
+                    if (strcmp(commands[commandID].syscallsArray[i].strValue, commands[j].name)==0){
+                        enqueue(&completed[commandID],  j);
+                    }
+                }
+
+            }
+        }
+
+    } else if (strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "read") == 0) {
+
+    } else if (strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "write") == 0) {
+
+
     }
 }
 
@@ -327,6 +371,12 @@ void execute_commands(void)
     //initialize sleeping queue
     Queue sleepingQ = *createQueue();
 
+    //initialize bloccke queue array
+    createWaitQueue();
+
+    //initilize array of completed variables
+    bool boolArray[MAX_COMMANDS] = {false}; // Initialize all elements to false
+
     //create current command variable
     int currentCommand = 0;
 
@@ -351,6 +401,9 @@ void execute_commands(void)
         }
 
         //unblock any commands waiting for all of their spawned processes to finish
+        for(int i; i< MAX_COMMANDS; i++){
+
+        }
 
         //unblock any completed I/O
 
