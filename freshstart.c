@@ -14,7 +14,7 @@
 #define MAX_COMMANDS                          10
 #define MAX_COMMAND_NAME                      20
 #define MAX_SYSCALLS_PER_PROCESS              40
-#define MAX_RUNNING PROCESSES                 50
+#define MAX_RUNNING_PROCESSES                 50
 #define MAX_LINE_LENGTH                      100 // Assumption: no line in any file will be longer than 100 characters
 #define TIME_CONTEXT_SWITCH                    5
 #define TIME_CORE_STATE_TRANSITIONS           10
