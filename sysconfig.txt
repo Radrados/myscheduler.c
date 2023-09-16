@@ -1,4 +1,3 @@
-
 #            devicename   readspeed      writespeed
 #
 device       usb3.1       640000000Bps   640000000Bps

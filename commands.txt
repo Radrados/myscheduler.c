@@ -1,5 +1,5 @@
 #
-justexit
-	10usecs	sleep 100000
+sleep10
+	10usecs	sleep 10
 	50usecs	exit
 #

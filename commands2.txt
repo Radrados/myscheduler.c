@@ -7,7 +7,7 @@ Longsleep
 	10usecs	sleep	5000000
 	50usecs	exit
 #
-calx
+cal
 	80usecs	write	terminal	200B
 	90usecs	exit
 #
