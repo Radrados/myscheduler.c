@@ -15,7 +15,7 @@
 #define MAX_COMMAND_NAME                      20
 #define MAX_SYSCALLS_PER_PROCESS              40
 #define MAX_RUNNING PROCESSES                 50
-#define MAX_LINE_LENGTH                      100 // Assumption: no line in any file will be longer than 100 characters
+#define MAX_LINE_LENGTH                      100 // Assumption: no line in any file will be longer than 100 characters.
 #define TIME_CONTEXT_SWITCH                    5
 #define TIME_CORE_STATE_TRANSITIONS           10
 #define TIME_ACQUIRE_BUS                      20
@@ -63,13 +63,15 @@ struct syscalls {
 
 //struct containing all information in commands file
 struct command {
+    //position in commands array
+    int commandID;
     //how long command has been executing on CPU
     int runtime;
     char name[MAX_COMMAND_NAME];
     //how many syscalls in command
     int syscallcount;
     //array containing all syscalls called by function
-    syscalls syscallsarray[MAX_SYSCALLS_PER_PROCESS]; // Array of syscalls rand uring the process
+    syscalls syscallsArray[MAX_SYSCALLS_PER_PROCESS]; // Array of syscalls rand uring the process
     //index of currently executing syscall
     int currentsyscall;
 };
@@ -98,6 +100,8 @@ Queue *sleepingQ;
 int timeQuantum;
 //array of commands from command file
 command commands[MAX_COMMANDS];
+//global clock
+int clock;
 
 ////////////////////////// FUNCTIONS /////////////////////////////
 
@@ -227,15 +231,147 @@ void read_sysconfig(char argv0[], char filename[])
     fclose(file);
 }
 
+//  ----------------------------------------------------------------------
 
-void read_commands(char argv0[], char filename[])
-{
+
+int read_commands();
+//  ----------------------------------------------------------------------
+
+int getSoonestWakingCommandIndex() {
+
+    // Initialize to first command's wake time
+    int soonestIndex = sleepingQ->front->commandID;  // assuming front() gets the value at the front without dequeueing
+    int minWakeTime = commands[soonestIndex].syscallsArray[commands[soonestIndex].currentsyscall].when;
+
+    Node* currentNode = sleepingQ->front; // assuming your queue has a 'front' member
+
+    while(currentNode) {
+        int commandIndex = currentNode->commandID;
+        int commandWakeTime = commands[commandIndex].syscallsArray[commands[commandIndex].currentsyscall].intValue;
+
+        if(commandWakeTime < minWakeTime) {
+            minWakeTime = commandWakeTime;
+            soonestIndex = commandIndex;
+        }
+
+        currentNode = currentNode->next;  // move to the next node
+    }
+    if(minWakeTime <= clock){
+        return soonestIndex;  // returning the index in the commands[] array of the soonest waking command
+    } else{
+        return -1;
+    }
 }
 
-//  ----------------------------------------------------------------------
+
+
+//function to execute a syscall
+void executeSysCall (int commandID){
+
+    //EXECUTE EXIT COMMAND
+    if(strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "exit")==0){
+        commands[commandID].currentsyscall++;
+        clock+= EXEC_SYSCALL_TIME;
+    }
+
+    //  EXECUTE SLEEP SYSCALL
+    if( strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "sleep")==0){
+        clock += EXEC_SYSCALL_TIME;
+
+        //replace sleep length with wake time and place it into the sleeping queue
+        commands[commandID].syscallsArray[commands[commandID].currentsyscall].intValue += clock;
+
+        //add curr command to sleeping queue
+        enqueue(sleepingQ, commandID);
+    }
+}
+
+//function to execute a syscall
+void runCommand (int commandID){
+
+    //time left till execution of syscall
+    int timeLeft;
+
+    //current syscall
+    syscalls currSysCall;
+
+    //time till syscall gets executed
+    timeLeft = currSysCall.when - commands[commandID].runtime;
+
+    //if process wil finish before timequantum kills it
+    if(timeLeft < timeQuantum){
+
+        //increment the clock by the ammount hte command is running
+        clock+= timeLeft;
+        commands[commandID].runtime+= timeLeft;
+        executeSysCall(commandID);
+
+    // the command will time out
+    } else{
+        clock+= timeQuantum;
+        commands[commandID].runtime+= timeQuantum;
+        clock+= TIME_CORE_STATE_TRANSITIONS;
+        enqueue(readyQ, commandID);
+
+
+    }
+
+
+}
 
 void execute_commands(void)
 {
+    //initialize ready queue
+    Queue readyQ = *createQueue();
+
+    //initialize sleeping queue
+    Queue sleepingQ = *createQueue();
+
+    //create current command variable
+    int currentCommand = 0;
+
+    //initialize clock
+    int clock = 0;
+
+    //enque first command into ready queue
+    enqueue(&readyQ, currentCommand);
+
+    //while there are commands in the ready queue or sleeping queue
+    while((!isEmpty(&readyQ)) || (!isEmpty(&sleepingQ))){
+
+        //IF THERE IS A COMMAND THAT NEEDS TO WAKE UP
+        if(getSoonestWakingCommandIndex() != -1){
+            currentCommand = getSoonestWakingCommandIndex();
+            //add woken process to
+            enqueue(&readyQ, currentCommand );
+            //increment clock by BLOCKED -> READY TIME (10 usecs)
+            clock+= TIME_CORE_STATE_TRANSITIONS;
+            //womand woken, start next syscall
+            commands[currentCommand].currentsyscall++;
+        }
+
+        //unblock any commands waiting for all of their spawned processes to finish
+
+        //unblock any completed I/O
+
+        //commence any pending I/O
+
+        //commence/resume the next ready procces if readyQ is not empty
+        if (!isEmpty(&readyQ)) {
+            currentCommand = dequeue(&readyQ);
+            runCommand(currentCommand);
+
+        //if ready queue is empty the just increment clock
+        } else{
+            clock++;
+        }
+
+        //if none of the above, then the CPU is idle
+
+
+
+    }
+
 
 }
 
