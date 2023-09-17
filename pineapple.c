@@ -100,6 +100,10 @@ Queue *readyQ;
 Queue *sleepingQ;
 //array of ques containig the commands spawend by the command with the processID of the index of the queue
 Queue waitingQ[MAX_COMMANDS];
+
+Queue *ioq;
+
+Queue waitingforioq;
 //array of length MAC COMMANDS with true in the coresponding place if command is completed
 bool completed[MAX_COMMANDS];
 //max time a command can run on CPU before getting kicked off
@@ -328,7 +332,7 @@ void read_commands(char argv0[], char filename[]) {
                 commands[i-1] = currentCommand;
             }
             strncpy(currentCommand.name, line, MAX_COMMAND_NAME);
-            //trim_newline(currentCommand.name);
+            trim_newline(currentCommand.name);
 
             currentCommand.syscallcount = 0;
             currentCommand.commandID = i; // Set commandID
@@ -439,17 +443,19 @@ void executeSysCall (int commandID) {
 
         //commands[commandID].syscallsArray[commands[commandID].currentsyscall].strValue;
         for (int i = 0; i < MAX_COMMANDS; i++) {
-            debugprint("%s compared to %s", spawned, commands[i].name);
+            debugprint("%s compared to %s\n", spawned, commands[i].name);
             //if commands[i] matches curent spawn
 //            printf("%i",i);
             if (strcmp(commands[i].name, spawned) == 0) {
                 enqueue(readyQ, commands[i].commandID);
+                clock+= TIME_CORE_STATE_TRANSITIONS;
                 printf("command %i has been spawned\n", commands[i].commandID);
-                continue;
+                commands[commandID].currentsyscall++;
+                enqueue((readyQ), commandID);
+                break;
             }
         }
         printf("\n");
-        printf("%i\n", MAX_COMMANDS);
         // if it is a wait proccess
     } else if (strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "wait") == 0) {
 
@@ -460,6 +466,9 @@ void executeSysCall (int commandID) {
                 for(int j = 0; j< MAX_COMMANDS; j++){
                     if (strcmp(commands[commandID].syscallsArray[i].strValue, commands[j].name)==0){
                         enqueue(&waitingQ[commandID],  j);
+                        clock+= TIME_CORE_STATE_TRANSITIONS;
+                        debugprint("adding parent of spawned process to waiting");
+
                     }
                 }
 
@@ -467,9 +476,29 @@ void executeSysCall (int commandID) {
         }
 
     } else if (strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "read") == 0) {
-
+        int devicenum;
+        for(int i ; i< MAX_DEVICES; i++){
+            if(devices[i].name== commands[commandID].syscallsArray[commands[commandID].currentsyscall].strValue){
+                devicenum = i;
+//                devicespeed = devicespeedces[i].readSpeed;
+            }
+        }
+        commands[commandID].syscallsArray[commands[commandID].currentsyscall].intValue = clock + commands[commandID].syscallsArray[commands[commandID].currentsyscall].intValue/devices[devicenum].readSpeed;
+        enqueue(&waitingforioq, commandID);
+        clock+= EXEC_SYSCALL_TIME;
+        clock+= TIME_CORE_STATE_TRANSITIONS;
     } else if (strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "write") == 0) {
-
+        int devicenum;
+        for(int i ; i< MAX_DEVICES; i++){
+            if(devices[i].name== commands[commandID].syscallsArray[commands[commandID].currentsyscall].strValue){
+                devicenum = i;
+//                devicespeed = devicespeedces[i].readSpeed;
+            }
+        }
+        commands[commandID].syscallsArray[commands[commandID].currentsyscall].intValue = clock + commands[commandID].syscallsArray[commands[commandID].currentsyscall].intValue/devices[devicenum].writeSpeed;
+        enqueue(&waitingforioq, commandID);
+        clock+= EXEC_SYSCALL_TIME;
+        clock+= TIME_CORE_STATE_TRANSITIONS;
 
     }
 }
@@ -522,10 +551,20 @@ void execute_commands(void)
     //initialize bloccke queue array
     createWaitQueue();
 
+//
+//    for(int i = 0; i< deviceCount; i++){
+//        ioQ[i].front= NULL;
+//        ioQ[i].rear= NULL;
+//    }
+
     //initilize array of completed variables
     bool completed[MAX_COMMANDS] = {false}; // Initialize all elements to false
 
     //create current command variable
+    clock = 0;
+
+
+
     int currentCommand = 0;
 
     // create queue variable
@@ -534,13 +573,12 @@ void execute_commands(void)
     //Node* currentNode;
 
     //initialize clock
-    clock = 0;
 
     //enque first command into ready queue
     enqueue(readyQ, currentCommand);//no & cos otherwile is is a pointer to a pointer
-
     //while there are commands in the ready queue or sleeping queue
     while((!isEmpty(readyQ)) || (!isEmpty(sleepingQ))){
+        debugprint("7777777777777777777777777777\n");
 
         debugprint("++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
         //IF THERE IS A COMMAND THAT NEEDS TO WAKE UP
@@ -572,10 +610,23 @@ void execute_commands(void)
                 }
             }
         }
+        debugprint("\t\t\t\tno wait commands to unblock at time %i\n", clock);
 
         //unblock any completed I/O
-
+        if(commands[peek(&ioq)].syscallsArray[commands[peek(&ioq)].currentsyscall].intValue <= clock){
+            enqueue(readyQ, dequeue(ioq));
+            debugprint("command %i has finished I/O\n", peek(ioq));
+            clock+= TIME_CORE_STATE_TRANSITIONS;
+        }
+        else {
+            debugprint("\t\t\t\tno I/O to unblock at time %i\n", clock);
+        }
         //commence any pending I/O
+        if(isEmpty(ioq)){
+            enqueue(ioq, dequeue(&waitingforioq));
+            clock+= TIME_ACQUIRE_BUS;
+        }
+
 
         //commence/resume the next ready procces if readyQ is not empty
         if (!isEmpty(readyQ)) {
@@ -594,8 +645,6 @@ void execute_commands(void)
 
 
     }
-
-
 }
 int getPercentage(){
     int totalruntime=0;

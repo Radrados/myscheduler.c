@@ -1,7 +1,6 @@
 #
 Spawntest
-	10usecs	sleep 15
-	20usecs	spawn	cal
+	20usecs	read	hd	48000B
 	50usecs	exit
 #
 Longsleep
@@ -9,6 +8,7 @@ Longsleep
 	50usecs	exit
 #
 cal
+	25usecs	sleep 15
 	20usecs	exit
 #
 copyfile
