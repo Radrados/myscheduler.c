@@ -434,16 +434,22 @@ void executeSysCall (int commandID) {
         clock++;
         debugprint("executing syscall: %s\n", commands[commandID].syscallsArray[commands[commandID].currentsyscall].name);
 
+        char spawned[MAX_COMMAND_NAME];
+        strcpy(spawned, commands[commandID].syscallsArray[commands[commandID].currentsyscall].strValue);
 
         //commands[commandID].syscallsArray[commands[commandID].currentsyscall].strValue;
         for (int i = 0; i < MAX_COMMANDS; i++) {
+            debugprint("%s compared to %s", spawned, commands[i].name);
             //if commands[i] matches curent spawn
-            if (strcmp(commands[i].name, commands[commandID].syscallsArray[commands[commandID].currentsyscall].strValue) == 0) {
+//            printf("%i",i);
+            if (strcmp(commands[i].name, spawned) == 0) {
                 enqueue(readyQ, commands[i].commandID);
                 printf("command %i has been spawned\n", commands[i].commandID);
                 continue;
             }
         }
+        printf("\n");
+        printf("%i\n", MAX_COMMANDS);
         // if it is a wait proccess
     } else if (strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "wait") == 0) {
 
@@ -618,7 +624,7 @@ int main(int argc, char *argv[])
 
 //  EXECUTE COMMANDS, STARTING AT FIRST IN command-file, UNTIL NONE REMAIN
     execute_commands();
-
+    debugprint("executed commands\n");
 //  PRINT THE PROGRAM'S RESULTS
     printf("measurements  %i  %i\n", clock, getPercentage());
 
