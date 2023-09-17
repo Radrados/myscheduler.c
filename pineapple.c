@@ -440,6 +440,7 @@ void executeSysCall (int commandID) {
             //if commands[i] matches curent spawn
             if (strcmp(commands[i].name, commands[commandID].syscallsArray[commands[commandID].currentsyscall].strValue) == 0) {
                 enqueue(readyQ, commands[i].commandID);
+                printf("command %i has been spawned\n", commands[i].commandID);
                 continue;
             }
         }
@@ -590,7 +591,13 @@ void execute_commands(void)
 
 
 }
-
+int getPercentage(){
+    int totalruntime=0;
+    for (int i = 0; i < MAX_COMMANDS; i++) {
+        totalruntime+= commands[i].runtime;
+    }
+    return 100*totalruntime/clock;
+}
 //  ----------------------------------------------------------------------
 
 int main(int argc, char *argv[])
@@ -613,7 +620,7 @@ int main(int argc, char *argv[])
     execute_commands();
 
 //  PRINT THE PROGRAM'S RESULTS
-    printf("measurements  %i  %i\n", clock, 0);
+    printf("measurements  %i  %i\n", clock, getPercentage());
 
     exit(EXIT_SUCCESS);
 }
