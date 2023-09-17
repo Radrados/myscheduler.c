@@ -1,15 +1,15 @@
 #
-Shortsleep
+Spawntest
 	10usecs	sleep 15
-	350usecs	exit
+	20usecs	spawn	cal
+	50usecs	exit
 #
 Longsleep
 	10usecs	sleep	5000000
 	50usecs	exit
 #
 cal
-	80usecs	write	terminal	200B
-	90usecs	exit
+	20usecs	exit
 #
 copyfile
 	200usecs	read	hd	48000B

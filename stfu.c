@@ -281,6 +281,12 @@ void read_sysconfig(char argv0[], char filename[])
 
 //  ----------------------------------------------------------------------
 
+void trim_newline(char *str) {
+    int len = strlen(str);
+    if (len > 0 && str[len - 1] == '\n') {
+        str[len - 1] = '\0';
+    }
+}
 
 void read_commands(char argv0[], char filename[]) {
     //int currentCommandID = 0; // Global variable to keep track of the current commandID
@@ -322,6 +328,8 @@ void read_commands(char argv0[], char filename[]) {
                 commands[i-1] = currentCommand;
             }
             strncpy(currentCommand.name, line, MAX_COMMAND_NAME);
+            trim_newline(currentCommand.name);
+
             currentCommand.syscallcount = 0;
             currentCommand.commandID = i; // Set commandID
             currentCommand.runtime = 0; // Initialize runtime to 0
@@ -342,7 +350,7 @@ void read_commands(char argv0[], char filename[]) {
                 sscanf(line, "%dusecs exit", &currentSyscall.when);
                 strcpy(currentSyscall.name, "exit");
             } else if (strstr(line, "spawn")) {
-                sscanf(line, "%dusecs spawn %s", &currentSyscall.when, currentSyscall.strValue);
+                sscanf(line, "%dusecs spawn %s\n", &currentSyscall.when, currentSyscall.strValue);
                 strcpy(currentSyscall.name, "spawn");
             } else if (strstr(line, "wait")) {
                 sscanf(line, "%dusecs wait", &currentSyscall.when);
@@ -429,8 +437,7 @@ void executeSysCall (int commandID) {
         //commands[commandID].syscallsArray[commands[commandID].currentsyscall].strValue;
         for (int i = 0; i < MAX_COMMANDS; i++) {
             //if commands[i] matches curent spawn
-            if (strcmp(commands[i].name,
-                       commands[commandID].syscallsArray[commands[commandID].currentsyscall].strValue) == 0) {
+            if (strcmp(commands[i].name, commands[commandID].syscallsArray[commands[commandID].currentsyscall].strValue) == 0) {
                 enqueue(readyQ, commands[i].commandID);
                 continue;
             }
