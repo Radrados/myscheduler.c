@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+
 //CITS 2002 Project 1 2023
 // Student 1:           23423175            RADOS MARKOVIC
 // Student 2:           23367345            ADITYA PATIL
@@ -22,8 +23,9 @@
 #define MAX_SYSCALLS_NAME                      6 // Assumption: max length for a syscall name is 6
 #define EXEC_SYSCALL_TIME                      1 // time taken for the syscall to actually execute
 #define CHAR_COMMENT                          '#'// comment start char in files
-#define DEBUG                                  true//
-#define MIN(a, b) ((a) < (b) ? (a) : (b))      // simple min function for 2 integers
+#define DEBUG                               true//
+#define MIN(a, b) ((a) < (b) ? (a) : (b))           // simple min function for 2 integers
+#define INT_MAX                             2147483647
 
 
 ////////////////////////////// STRUCTURES /////////////////////////////
@@ -158,13 +160,15 @@ int isEmpty(Queue* q) {
 
 // function to add element to sleeping queue
 void enqueue(Queue* q, int commandID) {////////////////////////////////////! fix issue
+
     Node* temp = newNode(commandID,-1);
     if (q->rear == NULL) {
         q->front = q->rear = temp;
-        return;
+
+    }else {
+        q->rear->next = temp;
+        q->rear = temp;
     }
-    q->rear->next = temp;
-    q->rear = temp;
 }
 
 // Function to peek at the front element without removing it
@@ -230,6 +234,7 @@ bool removeNodeWithCommandID(Queue* q, int commandID) {
 
 void read_sysconfig(char argv0[], char filename[])
 {
+    debugprint("reading sysconfig file\n");
     FILE *file;
     char line[MAX_LINE_LENGTH];
     file = fopen(filename, "r");
@@ -279,7 +284,7 @@ void read_sysconfig(char argv0[], char filename[])
 
 void read_commands(char argv0[], char filename[]) {
     //int currentCommandID = 0; // Global variable to keep track of the current commandID
-
+    debugprint("reading commands file\n");
     // read the file contents
     FILE *file = fopen(filename, "r");
 
@@ -358,9 +363,13 @@ void read_commands(char argv0[], char filename[]) {
 
 int getSoonestWakingCommandIndex() {
 
+    if(isEmpty(sleepingQ)){
+        return -1;
+    }
+
     // Initialize to first command's wake time
     int soonestIndex = sleepingQ->front->commandID;  // assuming front() gets the value at the front without dequeueing
-    int minWakeTime = commands[soonestIndex].syscallsArray[commands[soonestIndex].currentsyscall].when;
+    int minWakeTime =INT_MAX; //commands[soonestIndex].syscallsArray[commands[soonestIndex].currentsyscall].when;
 
     Node* currentNode = sleepingQ->front; // assuming your queue has a 'front' member
 
@@ -375,7 +384,9 @@ int getSoonestWakingCommandIndex() {
 
         currentNode = currentNode->next;  // move to the next node
     }
+
     if(minWakeTime <= clock){
+        removeNodeWithCommandID(sleepingQ, soonestIndex);
         return soonestIndex;  // returning the index in the commands[] array of the soonest waking command
     } else{
         return -1;
@@ -389,6 +400,8 @@ void executeSysCall (int commandID) {
 
     //EXECUTE EXIT COMMAND
     if (strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "exit") == 0) {
+
+        debugprint("executing syscall: %s\n", commands[commandID].syscallsArray[commands[commandID].currentsyscall].name);
         commands[commandID].currentsyscall++;
         completed[commandID] = true;
         clock += EXEC_SYSCALL_TIME;
@@ -397,6 +410,9 @@ void executeSysCall (int commandID) {
 
     //  EXECUTE SLEEP SYSCALL
     if (strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "sleep") == 0) {
+
+        debugprint("executing syscall: %s\n", commands[commandID].syscallsArray[commands[commandID].currentsyscall].name);
+
         clock += EXEC_SYSCALL_TIME;
 
         //replace sleep length with wake time and place it into the sleeping queue
@@ -404,8 +420,11 @@ void executeSysCall (int commandID) {
 
         //add curr command to sleeping queue
         enqueue(sleepingQ, commandID);
+
     } else if (strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "spawn") == 0) {
         clock++;
+        debugprint("executing syscall: %s\n", commands[commandID].syscallsArray[commands[commandID].currentsyscall].name);
+
 
         //commands[commandID].syscallsArray[commands[commandID].currentsyscall].strValue;
         for (int i = 0; i < MAX_COMMANDS; i++) {
@@ -418,6 +437,9 @@ void executeSysCall (int commandID) {
         }
         // if it is a wait proccess
     } else if (strcmp(commands[commandID].syscallsArray[commands[commandID].currentsyscall].name, "wait") == 0) {
+
+        debugprint("executing syscall: %s\n", commands[commandID].syscallsArray[commands[commandID].currentsyscall].name);
+
         for(int i =0; i< commands[commandID].syscallcount-1; i ++){
             if(strcmp(commands[commandID].syscallsArray[i].name, "spawn")==0){
                 for(int j = 0; j< MAX_COMMANDS; j++){
@@ -440,6 +462,7 @@ void executeSysCall (int commandID) {
 //function to execute a syscall
 void runCommand (int commandID){
 
+    debugprint("running command %i\n", commandID);
     //time left till execution of syscall
     int timeLeft;
 
@@ -452,14 +475,15 @@ void runCommand (int commandID){
 
     //if process wil finish before timequantum kills it
     if(timeLeft < timeQuantum){
-
+        debugprint("command %i will finish before time quantum\n", commandID);
         //increment the clock by the ammount hte command is running
-        clock+= timeLeft;
+        clock= clock + timeLeft;
         commands[commandID].runtime+= timeLeft;
         executeSysCall(commandID);
 
     // the command will time out
     } else{
+        debugprint("command %i will timeout\n", commandID);
         clock+= timeQuantum;
         commands[commandID].runtime+= timeQuantum;
         clock+= TIME_CORE_STATE_TRANSITIONS;
@@ -473,11 +497,12 @@ void runCommand (int commandID){
 
 void execute_commands(void)
 {
+    debugprint("executing commands\n");
     //initialize ready queue
-    Queue readyQ = *createQueue();
+    readyQ = createQueue();//Queue readyQ = *createQueue()
 
     //initialize sleeping queue
-    Queue sleepingQ = *createQueue();
+    sleepingQ = createQueue();
 
     //initialize bloccke queue array
     createWaitQueue();
@@ -494,23 +519,29 @@ void execute_commands(void)
     //Node* currentNode;
 
     //initialize clock
-    int clock = 0;
+    clock = 0;
 
     //enque first command into ready queue
-    enqueue(&readyQ, currentCommand);
+    enqueue(readyQ, currentCommand);//no & cos otherwile is is a pointer to a pointer
 
     //while there are commands in the ready queue or sleeping queue
-    while((!isEmpty(&readyQ)) || (!isEmpty(&sleepingQ))){
+    while((!isEmpty(readyQ)) || (!isEmpty(sleepingQ))){
 
+        debugprint("++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
         //IF THERE IS A COMMAND THAT NEEDS TO WAKE UP
-        if(getSoonestWakingCommandIndex() != -1){
-            currentCommand = getSoonestWakingCommandIndex();
+        currentCommand = getSoonestWakingCommandIndex();
+        if(currentCommand != -1){
+
+
             //add woken process to
-            enqueue(&readyQ, currentCommand );
+            enqueue(readyQ, currentCommand );
             //increment clock by BLOCKED -> READY TIME (10 usecs)
             clock+= TIME_CORE_STATE_TRANSITIONS;
             //womand woken, start next syscall
             commands[currentCommand].currentsyscall++;
+            debugprint("command  %i has woken up\n", currentCommand);
+        } else{
+            debugprint("no command to wake up at time %i\n", clock);
         }
 
         //unblock any commands waiting for all of their spawned processes to finish
@@ -519,7 +550,8 @@ void execute_commands(void)
                 for(int j=0; j< MAX_COMMANDS; j++){
                     //if command j was waiting for completedCOmmand and only completedCOmmand
                     if((removeNodeWithCommandID(&waitingQ[j], completedCommand)) &&  (isEmpty(&waitingQ[j]))){
-                        enqueue(&readyQ, j);
+                        enqueue(readyQ, j);
+                        debugprint("command %i has been unblocked\n", j);
                     }
 
                 }
@@ -531,8 +563,10 @@ void execute_commands(void)
         //commence any pending I/O
 
         //commence/resume the next ready procces if readyQ is not empty
-        if (!isEmpty(&readyQ)) {
-            currentCommand = dequeue(&readyQ);
+        if (!isEmpty(readyQ)) {
+            currentCommand = dequeue(readyQ);
+            clock+= TIME_CONTEXT_SWITCH;
+            debugprint("pulled command %i from ready queue\n", currentCommand);
             runCommand(currentCommand);
 
         //if ready queue is empty the just increment clock
@@ -561,15 +595,17 @@ int main(int argc, char *argv[])
 
 //  READ THE SYSTEM CONFIGURATION FILE
     read_sysconfig(argv[0], argv[1]);
+    debugprint("read sysconfig file\n");
 
 //  READ THE COMMAND FILE
     read_commands(argv[0], argv[2]);
+    debugprint("read commands file\n");
 
 //  EXECUTE COMMANDS, STARTING AT FIRST IN command-file, UNTIL NONE REMAIN
     execute_commands();
 
 //  PRINT THE PROGRAM'S RESULTS
-    printf("measurements  %i  %i\n", 0, 0);
+    printf("measurements  %i  %i\n", clock, 0);
 
     exit(EXIT_SUCCESS);
 }
